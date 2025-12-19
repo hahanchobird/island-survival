@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Island Survival</title>
+    <style>
+        /* v6.0 바탕색 및 스타일 그대로 유지 */
+        body { background-color: #f5f6fa; color: #2f3640; font-family: 'Malgun Gothic', sans-serif; margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+        .screen { width: 1100px; height: 750px; background-color: #ffffff; border: 2px solid #dcdde1; position: relative; display: none; padding: 20px; box-sizing: border-box; border-radius: 15px; box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+        .active { display: flex; flex-direction: column; }
+
+        /* 시작 화면 */
+        #start-screen { justify-content: center; align-items: center; background-color: #ffffff; }
+        #start-screen h1 { font-size: 80px; margin-bottom: 60px; color: #2f3640; }
+        .btn-main-rect { width: 220px; height: 110px; background: #2f3640; color: white; font-size: 28px; font-weight: bold; border: none; cursor: pointer; display: flex; justify-content: center; align-items: center; }
+
+        /* 캐릭터 생성 화면 */
+        .creation-flex { display: flex; gap: 20px; height: 550px; }
+        .input-box { width: 350px; border: 1px solid #dcdde1; padding: 15px; border-radius: 8px; background: #f9f9f9; }
+        .info-box { flex: 1; border: 1px solid #dcdde1; padding: 15px; border-radius: 8px; background: #ffffff; overflow-y: auto; }
+        .label-sky { color: #0984e3; font-weight: bold; margin-top: 15px; display: block; font-size: 14px; }
+        input, select { width: 100%; padding: 8px; margin: 5px 0; background: white; color: #2f3640; border: 1px solid #dcdde1; box-sizing: border-box; }
+        .rel-temp-list { background: #eee; padding: 8px; min-height: 40px; margin: 5px 0; font-size: 12px; color: #636e72; border: 1px dashed #b2bec3; }
+        .btn-add-char { background: #0984e3; color: white; border: none; padding: 12px; width: 100%; cursor: pointer; margin-top: 20px; font-weight: bold; }
+
+        /* 게임 화면 */
+        #game-screen { flex-direction: row; padding: 0; }
+        .diary-section { width: 33.3%; border-right: 1px solid #dcdde1; padding: 20px; box-sizing: border-box; background: #fdfdfd; }
+        .main-section { width: 66.7%; display: flex; flex-direction: column; }
+        .inv-section { height: 30%; padding: 20px; background: #f1f2f6; border-bottom: 1px solid #dcdde1; }
+        .survivor-section { height: 70%; padding: 20px; overflow-y: auto; }
+        .diary-box { height: 580px; font-size: 13px; line-height: 1.6; color: #2f3640; border: 1px solid #dcdde1; padding: 10px; overflow-y: auto; background: white; }
+        .diary-day-line { text-align: center; color: #d63031; margin: 15px 0 5px 0; font-weight: bold; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+
+        /* 생존자 카드 및 상태바 */
+        .s-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .s-card { background: white; padding: 10px; border: 1px solid #dcdde1; border-radius: 8px; font-size: 11px; color: #2f3640; }
+        .s-card.dead { filter: grayscale(100%); opacity: 0.5; }
+        .stat-bar { height: 6px; background: #dfe6e9; border-radius: 3px; margin: 2px 0 5px 0; overflow: hidden; }
+        .stat-fill { height: 100%; transition: width 0.3s; }
+        .rel-info { font-size: 10px; color: #636e72; border-top: 1px solid #eee; padding-top: 4px; margin-top: 5px; }
+
+        /* 아이템 */
+        .inv-item { display: inline-block; background: white; padding: 8px 12px; margin: 4px; border-radius: 5px; border: 1px solid #0984e3; font-size: 12px; cursor: pointer; color: #0984e3; }
+        .inv-item.unusable { opacity: 0.4; cursor: not-allowed; border-color: #b2bec3; color: #636e72; }
+        .inv-item.selected { background: #0984e3; color: white; }
+
+        /* 결과 화면 (추가됨) */
+        #gameover-screen { justify-content: center; align-items: center; text-align: center; background-color: #2f3640; color: white; }
+        #gameover-screen h2 { font-size: 50px; color: #ff7675; margin-bottom: 20px; }
+        .btn-retry { padding: 20px 50px; background: #0984e3; color: white; border: none; font-size: 24px; font-weight: bold; cursor: pointer; border-radius: 10px; }
+
+        /* 모달 */
+        #event-overlay { position: absolute; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); z-index: 100; display:none; justify-content:center; align-items:center; }
+        .modal { background: white; color: #2f3640; padding: 30px; border-radius: 12px; width: 450px; text-align: center; }
+        .modal button { margin: 10px; padding: 12px 20px; cursor: pointer; font-weight: bold; border: 1px solid #dcdde1; border-radius: 5px; background: white; }
+    </style>
+</head>
+<body>
+
+    <div id="start-screen" class="screen active">
+        <h1>Island Survival</h1>
+        <button class="btn-main-rect" onclick="changeScreen('char-creation-screen')">START</button>
+    </div>
+
+    <div id="char-creation-screen" class="screen">
+        <div style="color: #636e72; font-size: 13px; margin-bottom: 10px;">캐릭터를 생성하고 관계를 설정하세요.</div>
+        <div class="creation-flex">
+            <div class="input-box">
+                <span class="label-sky">Name (이름)</span>
+                <input type="text" id="c-name" placeholder="이름 입력">
+                <span class="label-sky">Personality (성격)</span>
+                <select id="c-mbti"></select>
+                <span class="label-sky">Job (직업)</span>
+                <select id="c-job"></select>
+                <span class="label-sky">Relationship (관계)</span>
+                <div style="display:flex; gap:5px;">
+                    <select id="rel-target" style="width:45%"></select>
+                    <select id="rel-type" style="width:35%">
+                        <option value="어색">어색</option><option value="친구">친구</option>
+                        <option value="애인">애인</option><option value="가족">가족</option>
+                    </select>
+                    <button onclick="addTempRelation()" style="width:20%; cursor:pointer;">추가</button>
+                </div>
+                <div id="temp-rel-list" class="rel-temp-list">설정된 관계가 없습니다.</div>
+                <button class="btn-add-char" onclick="finalizeCharacter()">캐릭터 생성</button>
+            </div>
+            <div class="info-box" id="char-list-area"></div>
+        </div>
+        <button onclick="startGame()" style="position:absolute; bottom:30px; right:30px; padding:15px 40px; background:#2ecc71; border:none; font-weight:bold; color:white; cursor:pointer; border-radius:5px;">시작하기 ></button>
+    </div>
+
+    <div id="game-screen" class="screen">
+        <div class="diary-section">
+            <h3>무인도 생존일지</h3>
+            <div id="diary-box" class="diary-box"></div>
+        </div>
+        <div class="main-section">
+            <div class="inv-section">
+                <h4 style="margin:0 0 10px 0;">🎒 가방</h4>
+                <div id="inv-display"></div>
+            </div>
+            <div class="survivor-section">
+                <h4 style="margin:0 0 10px 0;">👥 생존자 목록</h4>
+                <div id="s-grid" class="s-grid"></div>
+            </div>
+        </div>
+        <button onclick="nextTurn()" style="position:absolute; bottom:20px; right:20px; padding:15px 30px; background:#2f3640; border:none; color:white; font-weight:bold; cursor:pointer; border-radius:5px;">다음 턴 진행</button>
+    </div>
+
+    <div id="gameover-screen" class="screen">
+        <h2>살아남지 못했습니다</h2>
+        <p id="survival-day-count" style="font-size: 20px; margin-bottom: 30px;"></p>
+        <button class="btn-retry" onclick="retryGame()">RETRY (캐릭터 선택창)</button>
+    </div>
+
+    <div id="event-overlay"><div class="modal"><h2 id="ev-title"></h2><p id="ev-desc"></p><div id="ev-btns"></div></div></div>
+
+<script>
+    const MBTIS = ['infp','enfp','infj','enfj','isfp','esfp','isfj','esfj','intp','entp','intj','entj','istp','estp','istj','estj'];
+    const JOBS = ['대학생','교사','의사','군인','목수','어부','사냥꾼'];
+    let characters = [];
+    let tempRelations = [];
+    let inventory = { "물고기": 0, "통조림": 2, "물": 3, "항생제": 1, "고기": 0, "나무": 0, "붕대": 1, "작살": 0, "낚싯대": 0, "그물": 0, "코코넛": 0 };
+    let day = 1;
+    let selectedItem = null;
+
+    const mbtiSel = document.getElementById('c-mbti');
+    MBTIS.forEach(m => { let o = document.createElement('option'); o.value=m; o.innerText=m.toUpperCase(); mbtiSel.appendChild(o); });
+    const jobSel = document.getElementById('c-job');
+    JOBS.forEach(j => { let o = document.createElement('option'); o.value=j; o.innerText=j; jobSel.appendChild(o); });
+
+    function changeScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+    }
+
+    function addTempRelation() {
+        const target = document.getElementById('rel-target').value;
+        const type = document.getElementById('rel-type').value;
+        if(!target || tempRelations.find(r => r.target === target)) return;
+        tempRelations.push({ target, type });
+        renderTempRelations();
+    }
+
+    function renderTempRelations() {
+        const area = document.getElementById('temp-rel-list');
+        area.innerHTML = tempRelations.length === 0 ? "설정된 관계가 없습니다." : tempRelations.map(r => `<div>${r.target} (${r.type})</div>`).join('');
+    }
+
+    function finalizeCharacter() {
+        const name = document.getElementById('c-name').value.trim();
+        const mbti = document.getElementById('c-mbti').value;
+        const job = document.getElementById('c-job').value;
+        if(!name || characters.find(c => c.name === name)) return alert("이름 오류");
+
+        let newChar = { name, mbti, job, hp: 100, mp: 100, fatigue: 0, hunger: 0, thirst: 0, status: 'Alive', relations: {} };
+        tempRelations.forEach(r => {
+            let val = { '어색': 10, '친구': 30, '애인': 60, '가족': 70 }[r.type];
+            newChar.relations[r.target] = { type: r.type, val: val };
+            let tObj = characters.find(c => c.name === r.target);
+            if(tObj) tObj.relations[name] = { type: r.type, val: val };
+        });
+
+        characters.push(newChar);
+        tempRelations = [];
+        document.getElementById('c-name').value = '';
+        renderTempRelations();
+        updateCreationList();
+    }
+
+    function updateCreationList() {
+        const area = document.getElementById('char-list-area');
+        const targetSel = document.getElementById('rel-target');
+        area.innerHTML = ''; targetSel.innerHTML = '<option value="">대상 선택</option>';
+        characters.forEach(c => {
+            let relStr = Object.entries(c.relations).map(([target, info]) => `${target}(${info.type})`).join(', ');
+            area.innerHTML += `<div style="background:#f9f9f9; padding:10px; margin-bottom:5px; border:1px solid #dcdde1; border-radius:5px;"><b>${c.name}</b> [${c.mbti.toUpperCase()}/${c.job}]<br><span style="font-size:11px; color:#636e72;">관계: ${relStr || '없음'}</span></div>`;
+            let o = document.createElement('option'); o.value = c.name; o.innerText = c.name;
+            targetSel.appendChild(o);
+        });
+    }
+
+    function renderInventory() {
+        const div = document.getElementById('inv-display');
+        div.innerHTML = '';
+        const tools = ["작살", "그물", "낚싯대"];
+        Object.entries(inventory).forEach(([name, count]) => {
+            if(count > 0) {
+                let isTool = tools.includes(name);
+                let item = document.createElement('span');
+                item.className = `inv-item ${isTool ? 'unusable' : ''} ${selectedItem === name ? 'selected' : ''}`;
+                item.innerText = `${name} x ${count}`;
+                if(!isTool) item.onclick = () => { selectedItem = (selectedItem === name) ? null : name; updateAll(); };
+                div.appendChild(item);
+            }
+        });
+    }
+
+    function renderSurvivors() {
+        const grid = document.getElementById('s-grid');
+        grid.innerHTML = '';
+        characters.forEach(c => {
+            const card = document.createElement('div');
+            card.className = `s-card ${c.status !== 'Alive' ? 'dead' : ''}`;
+            let rels = Object.entries(c.relations).map(([target, info]) => `${target}(${info.type}:${info.val})`).join(', ');
+            card.innerHTML = `
+                <div style="font-weight:bold; color:#0984e3">${c.name} [${c.status}]</div>
+                <div style="margin-bottom:5px;">${c.mbti.toUpperCase()} / ${c.job}</div>
+                체력 <div class="stat-bar"><div class="stat-fill" style="width:${c.hp}%; background:#ff7675"></div></div>
+                정신 <div class="stat-bar"><div class="stat-fill" style="width:${c.mp}%; background:#a29bfe"></div></div>
+                피로 <div class="stat-bar"><div class="stat-fill" style="width:${c.fatigue}%; background:#fd79a8"></div></div>
+                허기 <div class="stat-bar"><div class="stat-fill" style="width:${c.hunger}%; background:#fdcb6e"></div></div>
+                갈증 <div class="stat-bar"><div class="stat-fill" style="width:${c.thirst}%; background:#74b9ff"></div></div>
+                <div class="rel-info">관계: ${rels || '없음'}</div>
+                ${selectedItem && c.status === 'Alive' ? `<button onclick="useItemOn('${c.name}')" style="width:100%; margin-top:5px; cursor:pointer; background:#0984e3; color:white; border:none; padding:4px; border-radius:3px;">사용</button>` : ''}
+            `;
+            grid.appendChild(card);
+        });
+    }
+
+    function useItemOn(name) {
+        let c = characters.find(x => x.name === name);
+        if(selectedItem === '물') c.thirst = Math.max(0, c.thirst - 30);
+        else if(['물고기', '고기', '통조림'].includes(selectedItem)) c.hunger = Math.max(0, c.hunger - 30);
+        else if(['항생제', '붕대'].includes(selectedItem)) c.hp = Math.min(100, c.hp + 20);
+        inventory[selectedItem]--; selectedItem = null; updateAll();
+    }
+
+    function checkGameOver() {
+        if (characters.length > 0 && characters.every(c => c.status !== 'Alive')) {
+            document.getElementById('survival-day-count').innerText = `총 ${day-1}일 동안 생존하였습니다.`;
+            changeScreen('gameover-screen');
+        }
+    }
+
+    function retryGame() {
+        characters = []; day = 1;
+        inventory = { "물고기": 0, "통조림": 2, "물": 3, "항생제": 1, "고기": 0, "나무": 0, "붕대": 1, "작살": 0, "낚싯대": 0, "그물": 0, "코코넛": 0 };
+        document.getElementById('diary-box').innerHTML = '';
+        updateCreationList();
+        changeScreen('char-creation-screen');
+    }
+
+    function nextTurn() {
+        logDiary(`------ Day ${day} ------`, true);
+        characters.forEach(c => {
+            if(c.status !== 'Alive') return;
+            c.hunger = Math.min(100, c.hunger + 10); c.thirst = Math.min(100, c.thirst + 10); c.fatigue = Math.min(100, c.fatigue + 5);
+            if(c.hunger >= 100 || c.thirst >= 100) c.hp = Math.max(0, c.hp - 10);
+            if(c.hp <= 0) c.status = 'Dead';
+            Object.values(c.relations).forEach(r => r.val = Math.min(100, r.val + 1));
+        });
+        if(Math.random() > 0.5) handleWeather(); else handleChoice();
+        characters.forEach(c => { if(c.status === 'Alive' && c.fatigue < 100) { if(Math.random() > 0.5) handleMBTI(c); else handleJob(c); }});
+        day++; updateAll();
+    }
+
+    function handleWeather() {
+        const r = Math.random();
+        if(r < 0.2) { logDiary("날씨가 맑습니다."); characters.forEach(c => c.mp = Math.min(100, c.mp+5)); }
+        else if(r < 0.7) { logDiary("비가 내립니다. 물+2"); inventory["물"] += 2; }
+        else { logDiary("폭풍우가 칩니다. 정신력-10"); characters.forEach(c => c.mp = Math.max(0, c.mp-10)); }
+    }
+
+    function handleChoice() {
+        showModal("낚시 기회", "물고기 떼를 발견했습니다!", [
+            { text: "손으로 잡는다", cb: () => { inventory["물고기"]+=1; logDiary("손으로 물고기를 잡았습니다."); updateAll(); }},
+            { text: "작살 사용", disabled: inventory["작살"]===0, cb: () => { inventory["작살"]--; inventory["물고기"]+=3; logDiary("작살로 물고기를 잡았습니다! (작살-1)"); updateAll(); }},
+            { text: "그물 사용", disabled: inventory["그물"]===0, cb: () => { inventory["그물"]--; inventory["물고기"]+=5; logDiary("그물로 물고기를 잡았습니다! (그물-1)"); updateAll(); }}
+        ]);
+    }
+
+    function handleJob(c) {
+        if(c.job === '의사') { logDiary(`(의사) ${c.name}: 항생제를 제조했습니다.`); inventory["항생제"]++; }
+        else if(c.job === '목수') { logDiary(`(목수) ${c.name}: 작살을 만들었습니다.`); inventory["작살"]++; }
+        else if(c.job === '사냥꾼') { logDiary(`(사냥꾼) ${c.name}: 그물을 만들었습니다.`); inventory["그물"]++; }
+        else logDiary(`(${c.job}) ${c.name}: 생존 활동을 합니다.`);
+    }
+
+    function handleMBTI(c) {
+        logDiary(`(${c.mbti.toUpperCase()}) ${c.name}: 희망을 찾습니다.`);
+        c.mp = Math.min(100, c.mp+5);
+    }
+
+    function logDiary(msg, isDayLine = false) {
+        const box = document.getElementById('diary-box');
+        box.innerHTML += isDayLine ? `<div class="diary-day-line">${msg}</div>` : `<div>${msg}</div>`;
+        box.scrollTop = box.scrollHeight;
+    }
+
+    function showModal(title, desc, btns) {
+        const overlay = document.getElementById('event-overlay');
+        document.getElementById('ev-title').innerText = title;
+        document.getElementById('ev-desc').innerText = desc;
+        const btnArea = document.getElementById('ev-btns'); btnArea.innerHTML = '';
+        btns.forEach(b => {
+            let btn = document.createElement('button'); btn.innerText = b.text;
+            if(b.disabled) btn.disabled = true;
+            btn.onclick = () => { overlay.style.display = 'none'; b.cb(); };
+            btnArea.appendChild(btn);
+        });
+        overlay.style.display = 'flex';
+    }
+
+    function startGame() { if(characters.length > 0) { changeScreen('game-screen'); updateAll(); } else alert("캐릭터를 생성하세요."); }
+    function updateAll() { renderInventory(); renderSurvivors(); checkGameOver(); }
+</script>
+</body>
+</html>
